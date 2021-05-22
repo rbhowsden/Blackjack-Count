@@ -1,8 +1,10 @@
 import random
+import pandas as pd
 
 class Card:
     def __init__(self, value):
         self.value = value
+
 
 class Shoe:
     def __init__(self, decks):
@@ -22,6 +24,7 @@ class Shoe:
         new_card = self.cards.pop(0)
         self.history[new_card.value] += 1
         return new_card.value
+
 
 class Hand:
     def __init__(self):
@@ -57,38 +60,38 @@ class Hand:
         self.calculate_value()
         return self.value
 
-    def display(self):
-        for card in self.cards:
-            print(card)
-        print("Total Value", self.get_value())
 
 class Game:
-    def __init__(self, decks, pen):
+    def __init__(self, decks, pen, rounds):
         self.decks = decks
-        self.pen = pen #add check to ensure this is between ranges
-
-    def play(self):
-        playing = True
+        self.pen = pen
+        self.rounds = rounds
         self.shoe = Shoe(self.decks)
+        self.outcome = None
+        self.p_hands = None
+        self.d_hand = None
+        self.dataset = pd.DataFrame()
 
-        while playing:
-            if (self.shoe.current_size/self.shoe.shoe_size) < 1 - self.pen:
-                print("Reshuffling Shoe")
-                self.shoe = Shoe(self.decks)
+    def simulate(self):
+
+        for r in range(self.rounds):
             self.outcome = 0
             self.p_hands = [Hand()]
             self.d_hand = Hand()
+
+            if (self.shoe.current_size/self.shoe.shoe_size) < 1 - self.pen:
+                self.shoe = Shoe(self.decks)
 
             for i in range(2):
                 self.p_hands[0].add_card(self.shoe.pull_card())
                 self.d_hand.add_card(self.shoe.pull_card())
 
-            game_over = False
-            while not game_over:
-                p_bj, d_bj = self.check_for_blackjack()
-                if p_bj or d_bj:
-                    game_over = True
-                    print("Total Outcome: ", self.outcome)
+            end_round = False
+            while not end_round:
+                bj = self.blackjack()
+                if bj:
+                    end_round = True
+                    self.log_results(r)
                     continue
 
                 self.splitter()
@@ -158,43 +161,31 @@ class Game:
                 while self.d_hand.get_value() < 17:
                     self.d_hand.add_card(self.shoe.pull_card())
 
-                #CHECK WINNINGS
                 dealer_final = self.d_hand.get_value()
-                print("Dealer Hand: ", self.d_hand.cards)
                 for hand in self.p_hands:
                     hand_final = hand.get_value()
-                    print("Player Hand: ", hand.cards)
                     if hand_final > 21:
-                        print("You Lose")
                         self.outcome -= hand.bet
-                    elif dealer_final > 21:
-                        print("You Win")
+                    elif (dealer_final > 21) or (hand_final > dealer_final):
                         self.outcome += hand.bet
-                    elif hand_final > dealer_final:
-                        print("You Win")
-                        self.outcome += hand.bet
-                    elif hand_final == dealer_final:
-                        print("Draw")
                     else:
-                        print("You Lose")
                         self.outcome -= hand.bet
 
+                self.log_results(r)
+                print(self.dataset)
+                end_round = True
 
-                print("Total Outcome: ", self.outcome)
-                print("Current Deck: ", self.shoe.history)
-                game_over = True
-
-
-    def check_for_blackjack(self):
-        p_bj = False
-        d_bj = False
-        if self.p_hands[0].get_value() == 21:
-            p_bj = True
-            self.outcome += 1.5
-        if self.d_hand.get_value() == 21:
-            d_bj = True
-            self.outcome -= 1
-        return p_bj, d_bj
+    def blackjack(self):
+        bj = False
+        if self.p_hands[0].get_value() == 21 and self.d_hand.get_value() == 21:
+            bj = True
+        elif self.p_hands[0].get_value() == 21:
+            bj = True
+            self.outcome += 1.5*self.p_hands[0].bet
+        elif self.d_hand.get_value() == 21:
+            bj = True
+            self.outcome += self.p_hands[0].bet
+        return bj
 
     def splitter(self):
         split_set = {
@@ -214,7 +205,7 @@ class Game:
         while splitting:
             splitting = False
             for i, hand in enumerate(self.p_hands):
-                #This won't match all 10s properly, but since they never split under strategy, we'll ignore for now
+                # Different "10" values will not match here but it doesn't matter given strategy
                 if hand.cards[0] == hand.cards[1]:
                     if (hand.cards[0], self.d_hand.cards[0]) in split_set:
                         splitting = True
@@ -223,4 +214,11 @@ class Game:
                         new_hand.add_card(self.shoe.pull_card())
                         hand.add_card(self.shoe.pull_card())
                         self.p_hands.append(new_hand)
+
+    def log_results(self, r):
+        row = self.shoe.history
+        row['outcome'] = self.outcome
+        row['round'] = r
+        self.dataset = self.dataset.append([row])
+
 
