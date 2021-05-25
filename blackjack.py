@@ -71,6 +71,7 @@ class Game:
         self.outcome = None
         self.p_hands = None
         self.d_hand = None
+        self.d = {}
         self.dataset = pd.DataFrame()
         self.pre_history = None
 
@@ -179,6 +180,7 @@ class Game:
 
                 self.log_results(r)
                 end_round = True
+        self.dataset = pd.DataFrame.from_dict(self.d, "index")
         self.dataset.to_parquet("blackjack.parquet.gzip", compression="gzip")
 
     def blackjack(self):
@@ -225,6 +227,6 @@ class Game:
         row = self.pre_history
         row['outcome'] = self.outcome
         row['round'] = r
-        self.dataset = self.dataset.append([row])
+        self.d[r] = row
 
 
