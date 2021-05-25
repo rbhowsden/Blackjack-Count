@@ -1,6 +1,7 @@
 import random
 import pandas as pd
 
+
 class Card:
     def __init__(self, value):
         self.value = value
@@ -71,13 +72,18 @@ class Game:
         self.p_hands = None
         self.d_hand = None
         self.dataset = pd.DataFrame()
+        self.pre_history = None
 
     def simulate(self):
 
         for r in range(self.rounds):
+            self.pre_history = self.shoe.history.copy()
             self.outcome = 0
             self.p_hands = [Hand()]
             self.d_hand = Hand()
+
+            if r % 1000 == 0:
+                print(r)
 
             if (self.shoe.current_size/self.shoe.shoe_size) < 1 - self.pen:
                 self.shoe = Shoe(self.decks)
@@ -172,8 +178,8 @@ class Game:
                         self.outcome -= hand.bet
 
                 self.log_results(r)
-                print(self.dataset)
                 end_round = True
+        self.dataset.to_parquet("blackjack.parquet.gzip", compression="gzip")
 
     def blackjack(self):
         bj = False
@@ -216,7 +222,7 @@ class Game:
                         self.p_hands.append(new_hand)
 
     def log_results(self, r):
-        row = self.shoe.history
+        row = self.pre_history
         row['outcome'] = self.outcome
         row['round'] = r
         self.dataset = self.dataset.append([row])
