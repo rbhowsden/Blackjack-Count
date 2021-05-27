@@ -161,6 +161,8 @@ class Game:
                     elif hand.hand_type == 'Soft' and (hand.get_value(), self.d_hand.cards[0]) in soft_set:
                         hand.add_card(self.shoe.pull_card())
                         hand.bet *= 2
+                    elif hand.hand_type == 'SplitA':
+                        continue
                     else:
                         while (hand.get_value(), self.d_hand.cards[0]) in hit_list[hand.hand_type]:
                             hand.add_card(self.shoe.pull_card())
@@ -181,7 +183,7 @@ class Game:
                 self.log_results(r)
                 end_round = True
         self.dataset = pd.DataFrame.from_dict(self.d, "index")
-        self.dataset.to_parquet("blackjack.parquet.gzip", compression="gzip")
+        self.dataset.to_parquet("blackjack_30m.parquet.gzip", compression="gzip")
 
     def blackjack(self):
         bj = False
@@ -210,17 +212,22 @@ class Game:
         }
 
         splitting = True
+        splits = 0
         while splitting:
             splitting = False
             for i, hand in enumerate(self.p_hands):
                 # Different "10" values will not match here but it doesn't matter given strategy
-                if hand.cards[0] == hand.cards[1]:
+                if hand.cards[0] == hand.cards[1] and splits < 3 and hand.hand_type != "SplitA":
                     if (hand.cards[0], self.d_hand.cards[0]) in split_set:
                         splitting = True
+                        splits += 1
                         new_hand = Hand()
                         new_hand.add_card(hand.cards.pop())
                         new_hand.add_card(self.shoe.pull_card())
                         hand.add_card(self.shoe.pull_card())
+                        if hand.cards[0] == "A":
+                            new_hand.hand_type = "SplitA"
+                            hand.hand_type = "SplitA"
                         self.p_hands.append(new_hand)
 
     def log_results(self, r):
