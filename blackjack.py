@@ -183,7 +183,7 @@ class Game:
                 self.log_results(r)
                 end_round = True
         self.dataset = pd.DataFrame.from_dict(self.d, "index")
-        self.dataset.to_parquet("blackjack_30m.parquet.gzip", compression="gzip")
+        self.dataset.to_parquet("blackjack.parquet.gzip", compression="gzip")
 
     def blackjack(self):
         bj = False
